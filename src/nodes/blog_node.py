@@ -1,75 +1,137 @@
+from src.config.languages import language_display_name
 from src.states.blogstate import BlogState
-from langchain_core.messages import SystemMessage, HumanMessage
-from src.states.blogstate import Blog
+
+
+def _fallback_slug(title: str) -> str:
+    slug = "".join(character.lower() if character.isalnum() else "-" for character in title)
+    slug = "-".join(part for part in slug.split("-") if part)
+    return slug or "blog-post"
+
+
+def _split_title_and_content(markdown: str, fallback_title: str) -> dict[str, str]:
+    lines = markdown.strip().splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith("# "):
+            title = line.replace("# ", "", 1).strip()
+            content = "\n".join(lines[index + 1 :]).strip()
+            return {"title": title or fallback_title, "content": content}
+
+    return {"title": fallback_title, "content": markdown.strip()}
+
 
 class BlogNode:
     """
-    A class to represent he blog node
+    LangGraph node implementations for a fast blog generation flow.
     """
 
-    def __init__(self,llm):
-        self.llm=llm
+    def __init__(self, llm):
+        self.llm = llm
 
-    
-    def title_creation(self,state:BlogState):
+    def planning(self, state: BlogState):
         """
-        create the title for the blog
+        Produce compact research notes and an outline in one LLM call.
         """
+        topic = state.get("topic")
+        if not topic:
+            raise ValueError("Topic is required to plan a blog.")
 
-        if "topic" in state and state["topic"]:
-            prompt="""
-                   You are an expert blog content writer. Use Markdown formatting. Generate
-                   a blog title for the {topic}. This title should be creative and SEO friendly
+        target_language = language_display_name(state.get("current_language"))
+        prompt = """
+        You are a senior content strategist.
+        Create compact planning notes for a blog post.
 
-                   """
-            
-            sytem_message=prompt.format(topic=state["topic"])
-            print(sytem_message)
-            response=self.llm.invoke(sytem_message)
-            print(response)
-            return {"blog":{"title":response.content}}
-        
-    def content_generation(self,state:BlogState):
-        if "topic" in state and state["topic"]:
-            system_prompt = """You are expert blog writer. Use Markdown formatting.
-            Generate a detailed blog content with detailed breakdown for the {topic}"""
-            system_message = system_prompt.format(topic=state["topic"])
-            response = self.llm.invoke(system_message)
-            return {"blog": {"title": state['blog']['title'], "content": response.content}}
-        
-    def translation(self,state:BlogState):
+        Topic: {topic}
+        Target audience: {audience}
+        Tone: {tone}
+        Length: {length}
+        Final language: {target_language}
+
+        Return Markdown with exactly these sections:
+        ## Research Notes
+        - 4 to 6 factual bullets.
+
+        ## Outline
+        - Introduction angle.
+        - 3 to 5 main sections.
+        - Practical examples to include.
+        - Conclusion angle.
         """
-        Translate the content to the specified language.
+        response = self.llm.invoke(
+            prompt.format(
+                topic=topic,
+                audience=state.get("audience", "technical readers"),
+                tone=state.get("tone", "professional"),
+                length=state.get("length", "medium"),
+                target_language=target_language,
+            )
+        )
+        plan = response.content.strip()
+        return {"research_notes": plan, "outline": plan}
+
+    def content_generation(self, state: BlogState):
         """
-        translation_prompt="""
-        Translate the following content into {current_language}.
-        - Maintain the original tone, style, and formatting.
-        - Adapt cultural references and idioms to be appropriate for {current_language}.
-
-        ORIGINAL CONTENT:
-        {blog_content}
-
+        Generate the final blog directly in the requested language.
         """
-        print(state["current_language"])
-        blog_content=state["blog"]["content"]
-        messages=[
-            HumanMessage(translation_prompt.format(current_language=state["current_language"], blog_content=blog_content))
+        topic = state.get("topic")
+        if not topic:
+            raise ValueError("Topic is required to generate blog content.")
 
+        target_language = language_display_name(state.get("current_language"))
+        length_rules = {
+            "short": "600 to 900 words with 3 main sections.",
+            "medium": "1000 to 1400 words with 4 main sections.",
+            "long": "1600 to 2200 words with 5 to 6 main sections.",
+        }
+        system_prompt = """
+        You are an expert technical blog writer.
+        Write the final blog post directly in {target_language}.
+
+        Topic: {topic}
+        Target audience: {audience}
+        Tone: {tone}
+        Length target: {length_rule}
+
+        Planning notes:
+        {outline}
+
+        Requirements:
+        - Return only Markdown.
+        - Start with a single H1 title.
+        - Use clear H2/H3 headings.
+        - Include practical examples where useful.
+        - Keep the explanation accurate and readable for the target audience.
+        - Do not invent citations or source URLs.
+        """
+        response = self.llm.invoke(
+            system_prompt.format(
+                target_language=target_language,
+                topic=topic,
+                audience=state.get("audience", "technical readers"),
+                tone=state.get("tone", "professional"),
+                length_rule=length_rules.get(state.get("length", "medium"), length_rules["medium"]),
+                outline=state.get("outline", ""),
+            )
+        )
+        return {"blog": _split_title_and_content(response.content, topic)}
+
+    def seo_generation(self, state: BlogState):
+        """
+        Generate lightweight SEO metadata locally for the final blog content.
+        """
+        blog = state["blog"]
+        words = blog["content"].split()
+        reading_time = max(1, round(len(words) / 200))
+        keywords = [
+            state["topic"],
+            language_display_name(state.get("current_language")),
+            state.get("audience", "technical readers"),
         ]
-        transaltion_content = self.llm.with_structured_output(Blog).invoke(messages)
-        return {"blog": {"content": transaltion_content}}
-
-    def route(self, state: BlogState):
-        return {"current_language": state['current_language'] }
-    
-
-    def route_decision(self, state: BlogState):
-        """
-        Route the content to the respective translation function.
-        """
-        if state["current_language"] == "hindi":
-            return "hindi"
-        elif state["current_language"] == "french": 
-            return "french"
-        else:
-            return state['current_language']
+        return {
+            "seo": {
+                "meta_title": blog["title"][:60],
+                "meta_description": blog["content"].replace("\n", " ")[:160],
+                "keywords": keywords,
+                "slug": _fallback_slug(blog["title"]),
+                "reading_time_minutes": reading_time,
+            }
+        }

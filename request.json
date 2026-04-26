@@ -1,5 +1,7 @@
 {
-     "topic":"Agentic AI",
-     "language":"french"
-
+  "topic": "Agentic AI in software engineering",
+  "language": "French",
+  "tone": "professional",
+  "audience": "software engineers",
+  "length": "medium"
 }
