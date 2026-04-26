@@ -19,8 +19,16 @@ class BlogSEO(BaseModel):
 class BlogState(TypedDict):
     topic: str
     blog: NotRequired[dict[str, str] | Blog]
+    draft_blog: NotRequired[dict[str, str] | Blog]
+    concept_notes: NotRequired[str]
+    use_case_notes: NotRequired[str]
+    risk_notes: NotRequired[str]
     research_notes: NotRequired[str]
+    retrieved_context: NotRequired[str]
+    sources: NotRequired[list[dict[str, str]]]
+    retrieval_warning: NotRequired[str]
     outline: NotRequired[str]
+    editor_notes: NotRequired[str]
     seo: NotRequired[dict | BlogSEO]
     current_language: NotRequired[str]
     tone: NotRequired[str]

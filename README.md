@@ -1,15 +1,18 @@
 # Agentic AI Blog Generation
 
-A portfolio-ready FastAPI, LangGraph, and Streamlit project that generates Markdown blog posts through a fast agentic workflow. The system creates planning notes, writes the final article directly in the selected language, generates SEO metadata, and stores the result in SQLite.
+A portfolio-ready FastAPI, LangGraph, and Next.js project that generates Markdown blog posts through a role-based multi-agent workflow. The system retrieves current web context, runs independent research agents in parallel, then uses Outline, Writer, Editor, and SEO agents to create polished multilingual articles and store them in SQLite.
 
 ## Features
 
-- Planning node for compact research notes and outline.
-- Content generation directly in the selected language.
-- SEO node for meta title, meta description, keywords, slug, and reading time.
+- Web Retrieval Agent using Tavily for current source grounding.
+- Parallel Concept, Use Case, and Risk Research Agents for compact topic notes.
+- Outline Agent for article structure.
+- Writer Agent for direct-language drafting.
+- Editor Agent for clarity, flow, and readability.
+- SEO Agent for meta title, meta description, keywords, slug, and reading time.
 - FastAPI backend with validated request and response models.
 - SQLite persistence for generated blogs.
-- Streamlit UI for generation, preview, SEO review, and history.
+- Next.js UI for generation, preview, SEO review, sources, and history.
 - CLI entry point for local generation.
 - Docker Compose setup for API and UI.
 - GitHub Actions CI for tests.
@@ -18,7 +21,7 @@ A portfolio-ready FastAPI, LangGraph, and Streamlit project that generates Markd
 ## Architecture
 
 ```text
-Streamlit UI / CLI / API Client
+Next.js UI / CLI / API Client
           |
           v
        FastAPI
@@ -26,9 +29,16 @@ Streamlit UI / CLI / API Client
           v
    LangGraph StateGraph
           |
-          +--> planning
-          +--> content_generation
-          +--> seo_generation
+          +--> web_retrieval_agent
+          |
+          +--> concept_research_agent ┐
+          +--> use_case_research_agent ├─ parallel research
+          +--> risk_research_agent    ┘
+          |
+          +--> outline_agent
+          +--> writer_agent
+          +--> editor_agent
+          +--> seo_agent
           |
           v
        SQLite
@@ -38,10 +48,10 @@ Streamlit UI / CLI / API Client
 
 - Python 3.13
 - FastAPI
-- Streamlit
+- Next.js
 - LangGraph
 - LangChain
-- Groq LLM API
+- OpenAI API by default, with optional Groq fallback
 - SQLite
 - Pydantic
 - Pytest
@@ -53,7 +63,8 @@ Streamlit UI / CLI / API Client
 ```text
 .
 ├── app.py                      # FastAPI application
-├── streamlit_app.py            # Streamlit frontend
+├── frontend                    # Next.js frontend
+├── streamlit_app.py            # Legacy Streamlit frontend
 ├── main.py                     # CLI entry point
 ├── Dockerfile
 ├── docker-compose.yml
@@ -83,10 +94,22 @@ cp .env.example .env
 Update `.env`:
 
 ```bash
-GROQ_API_KEY=your_groq_api_key_here
-GROQ_MODEL=llama-3.1-8b-instant
+LLM_PROVIDER=openai
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4o-mini
+TAVILY_API_KEY=your_tavily_api_key_here
 DATABASE_URL=sqlite:///data/blogs.db
 API_BASE_URL=http://localhost:8000
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
+
+To use Groq instead, set:
+
+```bash
+LLM_PROVIDER=groq
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
 ## Run The API
@@ -121,7 +144,7 @@ curl -X POST http://localhost:8000/blogs \
   }'
 ```
 
-Supported languages are currently English, French, Hindi, Spanish, German, and Telugu. English is the default and skips the translation node.
+Supported languages are currently English, French, Hindi, Spanish, German, and Telugu. The Writer and Editor agents write directly in the selected language.
 
 List stored blogs:
 
@@ -135,15 +158,17 @@ Fetch one blog:
 curl http://localhost:8000/blogs/1
 ```
 
-## Run The UI
+## Run The Next.js UI
 
 Start the API first, then run:
 
 ```bash
-streamlit run streamlit_app.py
+cd frontend
+npm install
+npm run dev
 ```
 
-Open `http://localhost:8501`.
+Open `http://localhost:3000`.
 
 ## Run From CLI
 
@@ -160,7 +185,7 @@ docker compose up --build
 
 API: `http://localhost:8000`
 
-UI: `http://localhost:8501`
+UI: `http://localhost:3000`
 
 ## Run Tests
 
@@ -170,19 +195,19 @@ pytest
 
 ## Resume Highlights
 
-- Built a fast agentic content generation workflow with LangGraph.
-- Designed graph nodes for planning, direct-language drafting, and SEO metadata generation.
-- Exposed the workflow through a validated FastAPI service and a Streamlit product UI.
+- Built a role-based multi-agent content generation workflow with LangGraph.
+- Added web retrieval for current-event grounding and source URLs.
+- Designed parallel research agents plus Outline, Writer, Editor, and SEO agents with clear graph responsibilities.
+- Exposed the workflow through a validated FastAPI service and a Next.js product UI.
 - Added SQLite persistence with retrieval and delete APIs.
 - Containerized the API and UI with Docker Compose.
 - Added CI and mocked tests to validate behavior without external LLM calls.
 
 ## Next Improvements
 
-- Add a real web research provider such as Tavily or SerpAPI.
 - Add a RAG pipeline with document loading, embeddings, vector storage, and retrieval.
 - Add an editor node for grammar, clarity, and tone refinement.
 - Add async background jobs for long-running generations.
 - Add authentication for stored blog history.
 - Add more languages in `src/config/languages.py`.
-- Deploy the API and UI to Render, Railway, or Hugging Face Spaces.
+- Deploy the API to Render/Railway and the Next.js UI to Vercel.

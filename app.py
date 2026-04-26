@@ -5,6 +5,7 @@ import logging
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.config.languages import SUPPORTED_LANGUAGES, normalize_language
@@ -23,6 +24,21 @@ app = FastAPI(
     title="Agentic Blog Generation API",
     description="Generate Markdown blog posts with a LangGraph-powered LLM workflow.",
     version="0.1.0",
+)
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8501",
+    ).split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 blog_repository = BlogRepository()
 
@@ -59,6 +75,9 @@ class BlogResponse(BaseModel):
     content: str
     research_notes: str | None = None
     outline: str | None = None
+    editor_notes: str | None = None
+    sources: list[dict[str, str]] = Field(default_factory=list)
+    retrieval_warning: str | None = None
     seo: dict = Field(default_factory=dict)
     tone: str | None = None
     audience: str | None = None

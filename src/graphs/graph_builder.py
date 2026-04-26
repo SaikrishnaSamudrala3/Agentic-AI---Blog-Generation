@@ -5,24 +5,38 @@ from src.states.blogstate import BlogState
 
 
 class GraphBuilder:
-    def __init__(self, llm):
+    def __init__(self, llm, web_retriever=None):
         self.llm = llm
+        self.web_retriever = web_retriever
 
     def build_graph(self):
         """
-        Build a fast blog generation graph.
+        Build a role-based multi-agent blog generation graph.
         """
         graph = StateGraph(BlogState)
-        blog_node = BlogNode(self.llm)
+        blog_node = BlogNode(self.llm, web_retriever=self.web_retriever)
 
-        graph.add_node("planning", blog_node.planning)
-        graph.add_node("content_generation", blog_node.content_generation)
-        graph.add_node("seo_generation", blog_node.seo_generation)
+        graph.add_node("web_retrieval_agent", blog_node.web_retrieval_agent)
+        graph.add_node("concept_research_agent", blog_node.concept_research_agent)
+        graph.add_node("use_case_research_agent", blog_node.use_case_research_agent)
+        graph.add_node("risk_research_agent", blog_node.risk_research_agent)
+        graph.add_node("outline_agent", blog_node.outline_agent)
+        graph.add_node("writer_agent", blog_node.writer_agent)
+        graph.add_node("editor_agent", blog_node.editor_agent)
+        graph.add_node("seo_agent", blog_node.seo_agent)
 
-        graph.add_edge(START, "planning")
-        graph.add_edge("planning", "content_generation")
-        graph.add_edge("content_generation", "seo_generation")
-        graph.add_edge("seo_generation", END)
+        graph.add_edge(START, "web_retrieval_agent")
+        graph.add_edge("web_retrieval_agent", "concept_research_agent")
+        graph.add_edge("web_retrieval_agent", "use_case_research_agent")
+        graph.add_edge("web_retrieval_agent", "risk_research_agent")
+        graph.add_edge(
+            ["concept_research_agent", "use_case_research_agent", "risk_research_agent"],
+            "outline_agent",
+        )
+        graph.add_edge("outline_agent", "writer_agent")
+        graph.add_edge("writer_agent", "editor_agent")
+        graph.add_edge("editor_agent", "seo_agent")
+        graph.add_edge("seo_agent", END)
 
         return graph
 

@@ -13,6 +13,9 @@ def test_blog_repository_creates_lists_gets_and_deletes_records(tmp_path):
             "length": "medium",
             "research_notes": "- Research note",
             "outline": "## Outline",
+            "editor_notes": "Editor Agent improved clarity.",
+            "sources": [{"title": "Source", "url": "https://example.com"}],
+            "retrieval_warning": None,
             "seo": {"slug": "agentic-ai"},
             "blog": {
                 "title": "Agentic AI Guide",
@@ -23,6 +26,8 @@ def test_blog_repository_creates_lists_gets_and_deletes_records(tmp_path):
 
     assert record["id"] == 1
     assert record["seo"]["slug"] == "agentic-ai"
+    assert record["editor_notes"] == "Editor Agent improved clarity."
+    assert record["sources"][0]["url"] == "https://example.com"
 
     assert len(repository.list()) == 1
     assert repository.get(1)["title"] == "Agentic AI Guide"

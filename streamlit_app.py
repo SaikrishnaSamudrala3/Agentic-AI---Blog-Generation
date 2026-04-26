@@ -85,6 +85,19 @@ with tab_research:
         st.subheader("Outline")
         st.markdown(selected_blog.get("outline") or "No outline saved.")
 
+        st.subheader("Editor Notes")
+        st.markdown(selected_blog.get("editor_notes") or "No editor notes saved.")
+
+        st.subheader("Sources")
+        if selected_blog.get("retrieval_warning"):
+            st.warning(selected_blog["retrieval_warning"])
+        sources = selected_blog.get("sources", [])
+        if sources:
+            for source in sources:
+                st.markdown(f"- [{source.get('title', 'Source')}]({source.get('url', '')})")
+        else:
+            st.info("No web sources were stored for this blog.")
+
         st.subheader("SEO")
         seo = selected_blog.get("seo", {})
         st.json(seo)

@@ -25,6 +25,9 @@ class BlogRepository:
                     content TEXT NOT NULL,
                     research_notes TEXT,
                     outline TEXT,
+                    editor_notes TEXT,
+                    sources TEXT,
+                    retrieval_warning TEXT,
                     seo TEXT,
                     tone TEXT,
                     audience TEXT,
@@ -34,6 +37,9 @@ class BlogRepository:
                 )
                 """
             )
+            self._ensure_column(connection, "blogs", "editor_notes", "TEXT")
+            self._ensure_column(connection, "blogs", "sources", "TEXT")
+            self._ensure_column(connection, "blogs", "retrieval_warning", "TEXT")
 
     def create(self, state: dict[str, Any]) -> dict[str, Any]:
         blog = state["blog"]
@@ -45,6 +51,9 @@ class BlogRepository:
             "content": blog["content"],
             "research_notes": state.get("research_notes"),
             "outline": state.get("outline"),
+            "editor_notes": state.get("editor_notes"),
+            "sources": json.dumps(state.get("sources", [])),
+            "retrieval_warning": state.get("retrieval_warning"),
             "seo": json.dumps(state.get("seo", {})),
             "tone": state.get("tone"),
             "audience": state.get("audience"),
@@ -57,12 +66,12 @@ class BlogRepository:
             cursor = connection.execute(
                 """
                 INSERT INTO blogs (
-                    topic, language, title, content, research_notes, outline,
-                    seo, tone, audience, length, status, created_at
+                    topic, language, title, content, research_notes, outline, editor_notes,
+                    sources, retrieval_warning, seo, tone, audience, length, status, created_at
                 )
                 VALUES (
-                    :topic, :language, :title, :content, :research_notes, :outline,
-                    :seo, :tone, :audience, :length, :status, :created_at
+                    :topic, :language, :title, :content, :research_notes, :outline, :editor_notes,
+                    :sources, :retrieval_warning, :seo, :tone, :audience, :length, :status, :created_at
                 )
                 """,
                 values,
@@ -76,7 +85,8 @@ class BlogRepository:
             rows = connection.execute(
                 """
                 SELECT id, topic, language, title, content, research_notes, outline,
-                       seo, tone, audience, length, status, created_at
+                       editor_notes, sources, retrieval_warning, seo, tone, audience, length,
+                       status, created_at
                 FROM blogs
                 ORDER BY id DESC
                 """
@@ -89,7 +99,8 @@ class BlogRepository:
             row = connection.execute(
                 """
                 SELECT id, topic, language, title, content, research_notes, outline,
-                       seo, tone, audience, length, status, created_at
+                       editor_notes, sources, retrieval_warning, seo, tone, audience, length,
+                       status, created_at
                 FROM blogs
                 WHERE id = ?
                 """,
@@ -113,6 +124,12 @@ class BlogRepository:
         return connection
 
     @staticmethod
+    def _ensure_column(connection, table_name: str, column_name: str, column_type: str):
+        columns = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+        if column_name not in {column["name"] for column in columns}:
+            connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+
+    @staticmethod
     def _sqlite_path(database_url: str) -> Path:
         if not database_url.startswith("sqlite:///"):
             raise ValueError("Only sqlite:/// DATABASE_URL values are currently supported.")
@@ -122,4 +139,5 @@ class BlogRepository:
     @staticmethod
     def _deserialize(record: dict[str, Any]) -> dict[str, Any]:
         record["seo"] = json.loads(record.get("seo") or "{}")
+        record["sources"] = json.loads(record.get("sources") or "[]")
         return record
