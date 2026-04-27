@@ -40,6 +40,10 @@ class BlogRepository:
             self._ensure_column(connection, "blogs", "editor_notes", "TEXT")
             self._ensure_column(connection, "blogs", "sources", "TEXT")
             self._ensure_column(connection, "blogs", "retrieval_warning", "TEXT")
+            self._ensure_column(connection, "blogs", "seo", "TEXT")
+            self._ensure_column(connection, "blogs", "tone", "TEXT")
+            self._ensure_column(connection, "blogs", "audience", "TEXT")
+            self._ensure_column(connection, "blogs", "length", "TEXT")
 
     def create(self, state: dict[str, Any]) -> dict[str, Any]:
         blog = state["blog"]
