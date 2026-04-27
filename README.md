@@ -1,84 +1,103 @@
 # Agentic AI Blog Generation
 
-A portfolio-ready FastAPI, LangGraph, and Next.js project that generates Markdown blog posts through a role-based multi-agent workflow. The system retrieves current web context, runs independent research agents in parallel, then uses Outline, Writer, Editor, and SEO agents to create polished multilingual articles and store them in SQLite.
+A full-stack agentic blog generator that creates Markdown articles with a LangGraph multi-agent workflow. The backend uses FastAPI, the primary frontend is built with Next.js, and generated blogs are stored in SQLite with research notes, source URLs, SEO metadata, and history.
 
-## Features
+## What It Does
 
-- Web Retrieval Agent using Tavily for current source grounding.
-- Parallel Concept, Use Case, and Risk Research Agents for compact topic notes.
-- Outline Agent for article structure.
-- Writer Agent for direct-language drafting.
-- Editor Agent for clarity, flow, and readability.
-- SEO Agent for meta title, meta description, keywords, slug, and reading time.
-- FastAPI backend with validated request and response models.
-- SQLite persistence for generated blogs.
-- Next.js UI for generation, preview, SEO review, sources, and history.
-- CLI entry point for local generation.
-- Docker Compose setup for API and UI.
-- GitHub Actions CI for tests.
-- Mocked tests that validate graph behavior without real LLM calls.
-
-## Architecture
-
-```text
-Next.js UI / CLI / API Client
-          |
-          v
-       FastAPI
-          |
-          v
-   LangGraph StateGraph
-          |
-          +--> web_retrieval_agent
-          |
-          +--> concept_research_agent ┐
-          +--> use_case_research_agent ├─ parallel research
-          +--> risk_research_agent    ┘
-          |
-          +--> outline_agent
-          +--> writer_agent
-          +--> editor_agent
-          +--> seo_agent
-          |
-          v
-       SQLite
-```
+- Generates blog posts from a topic, audience, tone, length, and language.
+- Retrieves current web context with Tavily when `TAVILY_API_KEY` is configured.
+- Runs parallel research agents for concepts, use cases, and risks.
+- Builds an outline, writes the article, edits it, and generates SEO metadata.
+- Stores generated posts in SQLite.
+- Exposes the workflow through a FastAPI API, a Next.js UI, a Streamlit UI, and a CLI.
+- Supports English, French, Hindi, Spanish, German, and Telugu.
 
 ## Tech Stack
 
 - Python 3.13
-- FastAPI
-- Next.js
-- LangGraph
-- LangChain
-- OpenAI API by default, with optional Groq fallback
-- SQLite
-- Pydantic
-- Pytest
-- Docker
-- GitHub Actions
+- FastAPI and Uvicorn
+- LangGraph and LangChain
+- OpenAI by default, with optional Groq support
+- Tavily for web retrieval
+- SQLite for local persistence
+- Next.js 16, React 19, and TypeScript
+- Streamlit as an alternate UI
+- Pytest and GitHub Actions CI
+- Docker and Docker Compose
 
 ## Project Structure
 
 ```text
 .
-├── app.py                      # FastAPI application
-├── frontend                    # Next.js frontend
-├── streamlit_app.py            # Legacy Streamlit frontend
-├── main.py                     # CLI entry point
-├── Dockerfile
-├── docker-compose.yml
-├── langgraph.json              # LangGraph Studio config
-├── src
-│   ├── graphs                  # LangGraph workflow builders
-│   ├── llms                    # LLM provider wrapper
-│   ├── nodes                   # Graph node implementations
-│   ├── states                  # Shared graph state and schemas
-│   └── storage                 # SQLite repository
-└── tests                       # Mocked workflow and persistence tests
+├── app.py                    # FastAPI app and API route definitions
+├── main.py                   # CLI entry point for local generation
+├── streamlit_app.py          # Optional Streamlit UI
+├── langgraph.json            # LangGraph Studio config
+├── Dockerfile                # Backend container
+├── docker-compose.yml        # Backend + frontend local container setup
+├── requirements.txt          # Python dependency list for pip/Docker
+├── pyproject.toml            # Python project metadata and pytest config
+├── uv.lock                   # uv lockfile
+├── request.json              # Example request payload
+├── data/                     # Local SQLite database folder, ignored by git
+├── frontend/
+│   ├── app/
+│   │   ├── page.tsx          # Main Next.js UI
+│   │   ├── api.ts            # API client helpers
+│   │   ├── types.ts          # Frontend TypeScript types
+│   │   ├── layout.tsx        # App shell metadata/layout
+│   │   └── globals.css       # UI styling
+│   ├── package.json          # Frontend scripts and dependencies
+│   └── Dockerfile            # Frontend container
+├── src/
+│   ├── config/
+│   │   └── languages.py      # Supported language normalization/display
+│   ├── graphs/
+│   │   ├── graph_builder.py  # LangGraph workflow topology
+│   │   └── studio.py         # LangGraph Studio graph export
+│   ├── llms/
+│   │   └── groqllm.py        # OpenAI/Groq LLM provider factory
+│   ├── nodes/
+│   │   └── blog_node.py      # Agent node implementations
+│   ├── retrieval/
+│   │   └── web_retriever.py  # Tavily search integration
+│   ├── states/
+│   │   └── blogstate.py      # Shared graph state and response schemas
+│   └── storage/
+│       └── blog_repository.py # SQLite persistence layer
+├── tests/                    # Mocked graph, language, and storage tests
+└── .github/workflows/ci.yml  # GitHub Actions test workflow
 ```
 
-## Setup
+## Agent Workflow
+
+```text
+API / CLI / UI
+     |
+     v
+FastAPI or local CLI
+     |
+     v
+LangGraph StateGraph
+     |
+     +--> Web Retrieval Agent
+     |
+     +--> Concept Research Agent ┐
+     +--> Use Case Research Agent ├─ parallel research
+     +--> Risk Research Agent    ┘
+     |
+     +--> Outline Agent
+     +--> Writer Agent
+     +--> Editor Agent
+     +--> SEO Agent
+     |
+     v
+SQLite blog history
+```
+
+## Environment Setup
+
+Clone the repository and create a Python environment:
 
 ```bash
 git clone https://github.com/SaikrishnaSamudrala3/Agentic-AI---Blog-Generation.git
@@ -86,25 +105,34 @@ cd Agentic-AI---Blog-Generation
 
 python -m venv .venv
 source .venv/bin/activate
-
 pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Update `.env`:
+Update `.env` with your keys:
 
 ```bash
 LLM_PROVIDER=openai
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-4o-mini
+
+# Optional Groq provider.
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
+
+# Optional, but recommended for web-grounded output.
 TAVILY_API_KEY=your_tavily_api_key_here
+
 DATABASE_URL=sqlite:///data/blogs.db
 API_BASE_URL=http://localhost:8000
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+
+# Optional LangSmith tracing.
+LANGCHAIN_API_KEY=your_langsmith_api_key_here
 ```
 
-To use Groq instead, set:
+To use Groq instead of OpenAI:
 
 ```bash
 LLM_PROVIDER=groq
@@ -112,22 +140,23 @@ GROQ_API_KEY=your_groq_api_key_here
 GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
-## Run The API
+If `TAVILY_API_KEY` is missing, generation still runs, but web retrieval is skipped and the response includes a retrieval warning.
+
+## Run The Backend API
 
 ```bash
 python app.py
 ```
 
-Health check:
+The local API runs at `http://localhost:8000`.
+
+Useful routes:
 
 ```bash
 curl http://localhost:8000/health
-```
-
-List supported languages:
-
-```bash
 curl http://localhost:8000/languages
+curl http://localhost:8000/blogs
+curl http://localhost:8000/blogs/1
 ```
 
 Generate and store a blog:
@@ -137,30 +166,22 @@ curl -X POST http://localhost:8000/blogs \
   -H "Content-Type: application/json" \
   -d '{
     "topic": "Agentic AI in software engineering",
-    "language": "french",
+    "language": "French",
     "tone": "professional",
     "audience": "software engineers",
     "length": "medium"
   }'
 ```
 
-Supported languages are currently English, French, Hindi, Spanish, German, and Telugu. The Writer and Editor agents write directly in the selected language.
-
-List stored blogs:
+Delete a stored blog:
 
 ```bash
-curl http://localhost:8000/blogs
-```
-
-Fetch one blog:
-
-```bash
-curl http://localhost:8000/blogs/1
+curl -X DELETE http://localhost:8000/blogs/1
 ```
 
 ## Run The Next.js UI
 
-Start the API first, then run:
+Start the backend first. Then, in another terminal:
 
 ```bash
 cd frontend
@@ -170,22 +191,54 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Run From CLI
+The UI lets you generate a blog, preview Markdown, inspect research notes and SEO metadata, view source URLs, download Markdown, browse history, and delete stored posts.
+
+## Run The Streamlit UI
+
+Start the backend first. Then run:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+Streamlit uses `API_BASE_URL` from `.env`, defaulting to `http://localhost:8000`.
+
+## Run From The CLI
 
 ```bash
 python main.py "Agentic AI in software engineering"
-python main.py "Agentic AI in software engineering" --language french --audience "software engineers" --tone technical --length long
+python main.py "Agentic AI in software engineering" \
+  --language french \
+  --audience "software engineers" \
+  --tone technical \
+  --length long
 ```
 
-## Run With Docker
+The CLI prints the generated Markdown and SEO metadata to the terminal. It does not store the result in SQLite; storage is handled by the API route.
+
+## Run With Docker Compose
 
 ```bash
 docker compose up --build
 ```
 
-API: `http://localhost:8000`
+Services:
 
-UI: `http://localhost:3000`
+- API: `http://localhost:8000`
+- Next.js UI: `http://localhost:3000`
+- SQLite data: Docker volume `blog_data`
+
+The backend Dockerfile listens on `${PORT:-10000}` for deployment platforms such as Render. Docker Compose maps the API container to local port `8000`.
+
+## LangGraph Studio
+
+The graph is exported from `src/graphs/studio.py` and configured in `langgraph.json`:
+
+```bash
+langgraph dev
+```
+
+This uses `.env` for provider keys and graph settings.
 
 ## Run Tests
 
@@ -193,21 +246,26 @@ UI: `http://localhost:3000`
 pytest
 ```
 
-## Resume Highlights
+The tests use fake LLM and fake web retriever objects, so they do not require OpenAI, Groq, or Tavily API calls.
 
-- Built a role-based multi-agent content generation workflow with LangGraph.
-- Added web retrieval for current-event grounding and source URLs.
-- Designed parallel research agents plus Outline, Writer, Editor, and SEO agents with clear graph responsibilities.
-- Exposed the workflow through a validated FastAPI service and a Next.js product UI.
-- Added SQLite persistence with retrieval and delete APIs.
-- Containerized the API and UI with Docker Compose.
-- Added CI and mocked tests to validate behavior without external LLM calls.
+CI runs the same test suite through `.github/workflows/ci.yml` on pushes and pull requests.
 
-## Next Improvements
+## API Response Shape
 
-- Add a RAG pipeline with document loading, embeddings, vector storage, and retrieval.
-- Add an editor node for grammar, clarity, and tone refinement.
-- Add async background jobs for long-running generations.
-- Add authentication for stored blog history.
-- Add more languages in `src/config/languages.py`.
-- Deploy the API to Render/Railway and the Next.js UI to Vercel.
+Generated blog records include:
+
+- `id`, `topic`, `language`, `title`, `content`, `status`, `created_at`
+- `research_notes`, `outline`, and `editor_notes`
+- `sources` from Tavily retrieval
+- `retrieval_warning` when retrieval is unavailable
+- `seo` with meta title, meta description, keywords, slug, and reading time
+- `tone`, `audience`, and `length`
+
+## Notes For Deployment
+
+- Set `OPENAI_API_KEY` or `GROQ_API_KEY` in the backend environment.
+- Set `TAVILY_API_KEY` if you want source-grounded generation.
+- Set `DATABASE_URL=sqlite:///data/blogs.db` for local or volume-backed SQLite.
+- Set `CORS_ORIGINS` to include your deployed frontend URL.
+- Set `NEXT_PUBLIC_API_BASE_URL` in the frontend environment to the deployed backend URL.
+

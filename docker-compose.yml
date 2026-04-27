@@ -6,6 +6,7 @@ services:
     env_file:
       - .env
     environment:
+      PORT: 8000
       DATABASE_URL: sqlite:///data/blogs.db
     volumes:
       - blog_data:/app/data
